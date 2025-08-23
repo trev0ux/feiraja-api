@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import { getProducts, createProduct } from '../controllers/productController.js'
+import { getProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../controllers/productController.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { checkDatabase } from '../middleware/database.js'
 
@@ -14,7 +14,13 @@ const upload = multer({
   }
 })
 
+// Public routes
 router.get('/', checkDatabase, getProducts)
+router.get('/:id', checkDatabase, getProductById)
+
+// Admin routes
 router.post('/', authenticateToken, checkDatabase, upload.single('image'), createProduct)
+router.put('/:id', authenticateToken, checkDatabase, upload.single('image'), updateProduct)
+router.delete('/:id', authenticateToken, checkDatabase, deleteProduct)
 
 export default router

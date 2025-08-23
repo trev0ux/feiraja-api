@@ -2,19 +2,60 @@ import prisma from '../utils/database.js'
 
 export const getCategories = async (req, res) => {
   try {
+    const { includeEmpty = false } = req.query
+    
     const categories = await prisma.category.findMany({
       include: {
         _count: {
           select: { products: true }
         }
+      },
+      orderBy: { name: 'asc' }
+    })
+
+    // Filter out empty categories unless specifically requested
+    const filteredCategories = includeEmpty === 'true' 
+      ? categories 
+      : categories.filter(category => category._count.products > 0)
+    
+    res.json(filteredCategories)
+  } catch (error) {
+    console.error('Categories error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const getCategoryById = async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id)
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        _count: {
+          select: { products: true }
+        },
+        products: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            inStock: true,
+            image: true
+          },
+          take: 10,
+          orderBy: { createdAt: 'desc' }
+        }
       }
     })
 
-    const categoriesWithProducts = categories.filter(category => category._count.products > 0)
-    
-    res.json(categoriesWithProducts)
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    res.json(category)
   } catch (error) {
-    console.error('Categories error:', error)
+    console.error('Get category error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 }

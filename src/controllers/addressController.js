@@ -89,3 +89,82 @@ export const createAddress = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 }
+
+export const updateAddress = async (req, res) => {
+  try {
+    const addressId = parseInt(req.params.id)
+    const {
+      name,
+      street,
+      neighborhood,
+      city,
+      state,
+      zipCode,
+      complement,
+      reference,
+      isDefault = false,
+    } = req.body
+
+    const existingAddress = await prisma.address.findUnique({
+      where: { id: addressId }
+    })
+
+    if (!existingAddress) {
+      return res.status(404).json({ error: 'Address not found' })
+    }
+
+    // If setting as default, remove default from other addresses of the same user
+    if (isDefault && isDefault !== 'false') {
+      await prisma.address.updateMany({
+        where: { 
+          userId: existingAddress.userId,
+          id: { not: addressId }
+        },
+        data: { isDefault: false }
+      })
+    }
+
+    const updatedAddress = await prisma.address.update({
+      where: { id: addressId },
+      data: {
+        ...(name && { name }),
+        ...(street && { street }),
+        ...(neighborhood && { neighborhood }),
+        ...(city && { city }),
+        ...(state && { state }),
+        ...(zipCode && { zipCode }),
+        ...(complement !== undefined && { complement }),
+        ...(reference !== undefined && { reference }),
+        ...(isDefault !== undefined && { isDefault: Boolean(isDefault) }),
+      }
+    })
+
+    res.json(updatedAddress)
+  } catch (error) {
+    console.error('Update address error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const deleteAddress = async (req, res) => {
+  try {
+    const addressId = parseInt(req.params.id)
+
+    const existingAddress = await prisma.address.findUnique({
+      where: { id: addressId }
+    })
+
+    if (!existingAddress) {
+      return res.status(404).json({ error: 'Address not found' })
+    }
+
+    await prisma.address.delete({
+      where: { id: addressId }
+    })
+
+    res.json({ message: 'Address deleted successfully' })
+  } catch (error) {
+    console.error('Delete address error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}

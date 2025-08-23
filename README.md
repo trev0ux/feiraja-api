@@ -100,25 +100,40 @@ The API will be available at `http://localhost:3001/api`
 
 ### Authentication
 - `POST /api/admin/login` - Admin login
+- `GET /api/admin/admins` - Get all admins (authenticated)
+- `POST /api/admin/admins` - Create new admin (authenticated)
+- `PUT /api/admin/admins/:id` - Update admin (authenticated)
+- `DELETE /api/admin/admins/:id` - Delete admin (authenticated)
 
 ### Categories
-- `GET /api/categories` - Get all categories (public)
+- `GET /api/categories` - Get all categories with product counts (public)
+  - Query params: `includeEmpty=true` to include categories without products
+- `GET /api/categories/:id` - Get category by ID with recent products (public)
 - `POST /api/admin/categories` - Create category (authenticated)
 - `PUT /api/admin/categories/:id` - Update category (authenticated)
 - `DELETE /api/admin/categories/:id` - Delete category (authenticated)
 
 ### Products
-- `GET /api/products` - Get products with filtering and pagination
+- `GET /api/products` - Get products with filtering and pagination (public)
+  - Query params: `category`, `search`, `page`, `limit`, `inStock`
+- `GET /api/products/:id` - Get product by ID with full details (public)
 - `POST /api/admin/products` - Create product with image upload (authenticated)
+- `PUT /api/admin/products/:id` - Update product with image upload (authenticated)
+- `DELETE /api/admin/products/:id` - Delete product (authenticated)
 
 ### Box Prices
-- `GET /api/admin/box-prices` - Get box pricing (authenticated)
+- `GET /api/admin/box-prices` - Get all box pricing (authenticated)
+- `GET /api/admin/box-prices/:id` - Get box price by ID (authenticated)
+- `POST /api/admin/box-prices` - Create box price (authenticated)
 - `PUT /api/admin/box-prices/:id` - Update box price (authenticated)
+- `DELETE /api/admin/box-prices/:id` - Delete box price (authenticated)
 
 ### Addresses
-- `GET /api/addresses` - Get addresses (with optional userId filter)
-- `GET /api/addresses/:id` - Get address by ID
+- `GET /api/addresses` - Get addresses with optional userId filter (public)
+- `GET /api/addresses/:id` - Get address by ID (public)
 - `POST /api/admin/addresses` - Create address (authenticated)
+- `PUT /api/admin/addresses/:id` - Update address (authenticated)
+- `DELETE /api/admin/addresses/:id` - Delete address (authenticated)
 
 ## Database Scripts
 
