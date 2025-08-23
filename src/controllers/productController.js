@@ -85,7 +85,11 @@ export const getProductById = async (req, res) => {
         category: {
           select: { name: true }
         },
-        origin: true,
+        origin: {
+          include: {
+            producerRef: true
+          }
+        },
         nutritionalInfo: true
       }
     })
@@ -148,22 +152,12 @@ export const createProduct = async (req, res) => {
       }
     })
 
-    if (req.body['origin.producer']) {
+    if (req.body['origin.producerId'] || req.body['origin.distance'] || req.body['origin.harvestDate']) {
       const originData = {
         productId: newProduct.id,
-        producer: req.body['origin.producer'] || undefined,
-        location: req.body['origin.location'] || undefined,
+        producerId: req.body['origin.producerId'] ? parseInt(req.body['origin.producerId']) : undefined,
         distance: req.body['origin.distance'] || undefined,
         harvestDate: req.body['origin.harvestDate'] || undefined,
-        story: req.body['origin.story'] || undefined,
-      }
-
-      if (req.body['origin.certifications']) {
-        try {
-          originData.certifications = JSON.parse(req.body['origin.certifications'])
-        } catch (e) {
-          originData.certifications = []
-        }
       }
 
       await prisma.productOrigin.create({ data: originData })
@@ -244,27 +238,21 @@ export const updateProduct = async (req, res) => {
         category: {
           select: { name: true }
         },
-        origin: true,
+        origin: {
+          include: {
+            producerRef: true
+          }
+        },
         nutritionalInfo: true
       }
     })
 
     // Update origin if provided
-    if (req.body['origin.producer']) {
+    if (req.body['origin.producerId'] || req.body['origin.distance'] || req.body['origin.harvestDate']) {
       const originData = {
-        producer: req.body['origin.producer'] || undefined,
-        location: req.body['origin.location'] || undefined,
+        producerId: req.body['origin.producerId'] ? parseInt(req.body['origin.producerId']) : undefined,
         distance: req.body['origin.distance'] || undefined,
         harvestDate: req.body['origin.harvestDate'] || undefined,
-        story: req.body['origin.story'] || undefined,
-      }
-
-      if (req.body['origin.certifications']) {
-        try {
-          originData.certifications = JSON.parse(req.body['origin.certifications'])
-        } catch (e) {
-          originData.certifications = []
-        }
       }
 
       await prisma.productOrigin.upsert({

@@ -48,19 +48,38 @@ model Product {
   @@map("products")
 }
 
-model ProductOrigin {
+model Producer {
   id            Int      @id @default(autoincrement())
-  productId     Int      @unique
-  producer      String?
+  name          String
+  email         String?  @unique
+  phone         String?
   location      String?
-  distance      String?
-  harvestDate   String?
-  certifications Json?
   story         String?
+  certifications Json?
+  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  products      ProductOrigin[]
+
+  @@map("producers")
+}
+
+model ProductOrigin {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @unique
+  producer      String?  // Keep temporarily for migration
+  location      String?  // Keep temporarily for migration  
+  story         String?  // Keep temporarily for migration
+  certifications Json?   // Keep temporarily for migration
+  producerId    Int?
+  distance      String?
+  harvestDate   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  producerRef Producer? @relation(fields: [producerId], references: [id])
 
   @@map("product_origins")
 }

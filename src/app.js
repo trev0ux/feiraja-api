@@ -44,14 +44,17 @@ app.get('/api/health', (req, res) => {
 import authRoutes from './routes/auth.js'
 import categoryRoutes from './routes/categories.js'
 import productRoutes from './routes/products.js'
+import producerRoutes from './routes/producers.js'
 import boxPriceRoutes from './routes/boxPrices.js'
 import addressRoutes from './routes/addresses.js'
 
 app.use('/api/admin', authRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/products', productRoutes)
+app.use('/api/producers', producerRoutes)
 app.use('/api/admin/categories', categoryRoutes)
 app.use('/api/admin/products', productRoutes)
+app.use('/api/admin/producers', producerRoutes)
 app.use('/api/admin/box-prices', boxPriceRoutes)
 app.use('/api/addresses', addressRoutes)
 app.use('/api/admin/addresses', addressRoutes)
