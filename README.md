@@ -154,11 +154,4 @@ Ensure these environment variables are set in your production environment:
 - `JWT_SECRET` - JWT signing secret
 - `NODE_ENV=production`
 
-## Admin Credentials
-
-Default admin credentials (for development):
-- Username: `admin`
-- Password: `admin123`
-- Email: `admin@feiraja.com`
-
 **⚠️ Change these credentials in production!**
