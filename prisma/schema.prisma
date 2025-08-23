@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id       Int      @id @default(autoincrement())
+  username String   @unique
+  email    String   @unique
+  password String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  categoryId  Int
+  image       String?
+  inStock     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id])
+  origin   ProductOrigin?
+  nutritionalInfo ProductNutritionalInfo?
+
+  @@map("products")
+}
+
+model ProductOrigin {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @unique
+  producer      String?
+  location      String?
+  distance      String?
+  harvestDate   String?
+  certifications Json?
+  story         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_origins")
+}
+
+model ProductNutritionalInfo {
+  id        Int      @id @default(autoincrement())
+  productId Int      @unique
+  portion   String?
+  calories  Int?
+  carbs     String?
+  fiber     String?
+  protein   String?
+  vitamins  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_nutritional_info")
+}
+
+model BoxPrice {
+  id          Int      @id @default(autoincrement())
+  profileType Int      @unique
+  name        String
+  basePrice   Float
+  itemCount   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("box_prices")
+}
+
+model Address {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  name         String
+  street       String
+  neighborhood String
+  city         String
+  state        String
+  zipCode      String
+  complement   String?
+  reference    String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("addresses")
+}
