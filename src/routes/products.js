@@ -2,6 +2,7 @@ import express from 'express'
 import multer from 'multer'
 import { getProducts, createProduct } from '../controllers/productController.js'
 import { authenticateToken } from '../middleware/auth.js'
+import { checkDatabase } from '../middleware/database.js'
 
 const router = express.Router()
 
@@ -13,7 +14,7 @@ const upload = multer({
   }
 })
 
-router.get('/', getProducts)
-router.post('/', authenticateToken, upload.single('image'), createProduct)
+router.get('/', checkDatabase, getProducts)
+router.post('/', authenticateToken, checkDatabase, upload.single('image'), createProduct)
 
 export default router

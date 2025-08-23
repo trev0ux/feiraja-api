@@ -3,12 +3,6 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import dotenv from 'dotenv'
 
-import authRoutes from './routes/auth.js'
-import categoryRoutes from './routes/categories.js'
-import productRoutes from './routes/products.js'
-import boxPriceRoutes from './routes/boxPrices.js'
-import addressRoutes from './routes/addresses.js'
-
 dotenv.config()
 
 const app = express()
@@ -33,9 +27,17 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    version: '2.0.0'
+    version: '2.0.0',
+    database: process.env.DATABASE_URL ? 'configured' : 'not configured'
   })
 })
+
+// Import routes only after app is configured
+import authRoutes from './routes/auth.js'
+import categoryRoutes from './routes/categories.js'
+import productRoutes from './routes/products.js'
+import boxPriceRoutes from './routes/boxPrices.js'
+import addressRoutes from './routes/addresses.js'
 
 app.use('/api/admin', authRoutes)
 app.use('/api/categories', categoryRoutes)
