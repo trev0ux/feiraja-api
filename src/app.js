@@ -3,7 +3,10 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import dotenv from 'dotenv'
 
-dotenv.config()
+// Only load dotenv in development - Vercel injects env vars automatically
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config()
+}
 
 const app = express()
 
@@ -28,7 +31,12 @@ app.get('/api/health', (req, res) => {
     status: 'healthy', 
     timestamp: new Date().toISOString(),
     version: '2.0.0',
-    database: process.env.DATABASE_URL ? 'configured' : 'not configured'
+    database: process.env.DATABASE_URL ? 'configured' : 'not configured',
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      hasDbUrl: !!process.env.DATABASE_URL,
+      hasJwtSecret: !!process.env.JWT_SECRET
+    }
   })
 })
 
