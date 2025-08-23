@@ -1,0 +1,35 @@
+{
+  "name": "feiraja-api",
+  "version": "1.0.0",
+  "description": "Feiraja Backend API - Marketplace de produtos locais",
+  "main": "api/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js",
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "api",
+    "marketplace",
+    "local-products",
+    "express"
+  ],
+  "author": "Feiraja Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
