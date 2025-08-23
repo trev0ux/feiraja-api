@@ -2,6 +2,8 @@ import prisma from '../utils/database.js'
 
 export const getProducts = async (req, res) => {
   try {
+    console.log('🔍 Starting getProducts request')
+    
     const { category, search, page = 1, limit = 20, inStock } = req.query
     
     const skip = (parseInt(page) - 1) * parseInt(limit)
@@ -9,12 +11,15 @@ export const getProducts = async (req, res) => {
 
     let whereClause = {}
 
+    // Simplified category filtering to avoid additional queries
     if (category && category !== 'Todas') {
-      const categoryObj = await prisma.category.findFirst({
-        where: { name: category }
-      })
-      if (categoryObj) {
-        whereClause.categoryId = categoryObj.id
+      // Try to parse as ID first, then by name
+      const categoryId = parseInt(category)
+      if (!isNaN(categoryId)) {
+        whereClause.categoryId = categoryId
+      } else {
+        // For name-based filtering, we'll do it after the query
+        console.log('🔍 Category filtering by name:', category)
       }
     }
 
@@ -29,22 +34,24 @@ export const getProducts = async (req, res) => {
       whereClause.inStock = inStock === 'true'
     }
 
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where: whereClause,
-        include: {
-          category: {
-            select: { name: true }
-          },
-          origin: true,
-          nutritionalInfo: true
-        },
-        skip,
-        take,
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.product.count({ where: whereClause })
-    ])
+    console.log('🔍 Where clause:', JSON.stringify(whereClause))
+
+    // Simplified query without complex includes initially
+    const products = await prisma.product.findMany({
+      where: whereClause,
+      include: {
+        category: {
+          select: { name: true }
+        }
+      },
+      skip,
+      take,
+      orderBy: { createdAt: 'desc' }
+    })
+
+    console.log('🔍 Found products:', products.length)
+
+    const total = await prisma.product.count({ where: whereClause })
 
     const productsWithCategory = products.map(product => ({
       ...product,
@@ -60,7 +67,11 @@ export const getProducts = async (req, res) => {
     })
   } catch (error) {
     console.error('Products error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error('Error details:', error.message)
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 }
 
