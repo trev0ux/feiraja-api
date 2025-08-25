@@ -47,6 +47,7 @@ import productRoutes from './routes/products.js'
 import producerRoutes from './routes/producers.js'
 import boxPriceRoutes from './routes/boxPrices.js'
 import addressRoutes from './routes/addresses.js'
+import webhookRoutes from './routes/webhook.js'
 
 app.use('/api/admin', authRoutes)
 app.use('/api/categories', categoryRoutes)
@@ -58,6 +59,7 @@ app.use('/api/admin/producers', producerRoutes)
 app.use('/api/admin/box-prices', boxPriceRoutes)
 app.use('/api/addresses', addressRoutes)
 app.use('/api/admin/addresses', addressRoutes)
+app.use('/api/webhook', webhookRoutes)
 
 app.use((err, req, res, next) => {
   console.error('Global error:', err)
