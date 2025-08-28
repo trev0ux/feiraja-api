@@ -1,4 +1,5 @@
 import express from 'express'
+import twilio from 'twilio'
 
 const router = express.Router()
 
@@ -55,92 +56,69 @@ router.post('/user-access', async (req, res) => {
   }
 })
 
-// WhatsApp webhook endpoint for incoming messages
+// Twilio WhatsApp webhook endpoint for incoming messages
 router.post('/whatsapp', async (req, res) => {
   try {
-    const { entry } = req.body
+    console.log('📱 Twilio WhatsApp webhook received:', JSON.stringify(req.body, null, 2))
     
-    console.log('📱 WhatsApp webhook received:', JSON.stringify(req.body, null, 2))
+    const { From, Body, MessageSid } = req.body
     
-    // Handle WhatsApp webhook verification
-    if (req.query['hub.mode'] === 'subscribe' && req.query['hub.challenge']) {
-      console.log('✅ WhatsApp webhook verification successful')
-      return res.status(200).send(req.query['hub.challenge'])
+    if (From && Body) {
+      await handleIncomingTwilioWhatsAppMessage({
+        from: From,
+        body: Body,
+        messageSid: MessageSid
+      })
     }
     
-    // Process incoming messages
-    if (entry && entry[0] && entry[0].changes) {
-      for (const change of entry[0].changes) {
-        if (change.value && change.value.messages) {
-          for (const message of change.value.messages) {
-            await handleIncomingWhatsAppMessage(message, change.value.metadata)
-          }
-        }
-      }
-    }
-    
-    res.status(200).json({ success: true, message: 'WhatsApp webhook processed' })
+    // Respond with TwiML (empty response means no automatic reply)
+    res.set('Content-Type', 'text/xml')
+    res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>')
     
   } catch (error) {
-    console.error('❌ Error processing WhatsApp webhook:', error)
+    console.error('❌ Error processing Twilio WhatsApp webhook:', error)
     res.status(500).json({
       success: false,
-      error: 'Failed to process WhatsApp webhook',
+      error: 'Failed to process Twilio WhatsApp webhook',
       message: error.message
     })
   }
 })
 
-// WhatsApp webhook verification (GET request)
-router.get('/whatsapp', (req, res) => {
-  const mode = req.query['hub.mode']
-  const token = req.query['hub.verify_token']
-  const challenge = req.query['hub.challenge']
-  
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'feiraja_webhook_token'
-  
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ WhatsApp webhook verified')
-    res.status(200).send(challenge)
-  } else {
-    console.log('❌ WhatsApp webhook verification failed')
-    res.status(403).send('Forbidden')
-  }
-})
-
-// Handle incoming WhatsApp message
-async function handleIncomingWhatsAppMessage(message, metadata) {
+// Handle incoming Twilio WhatsApp message
+async function handleIncomingTwilioWhatsAppMessage(message) {
   try {
-    const { from, text, type } = message
-    const phoneNumber = from
-    const messageText = text?.body || ''
+    const { from, body, messageSid } = message
+    const phoneNumber = from.replace('whatsapp:', '') // Remove whatsapp: prefix
+    const messageText = body || ''
     
-    console.log('📨 New WhatsApp message:', {
+    console.log('📨 New Twilio WhatsApp message:', {
       from: phoneNumber,
-      type,
-      message: messageText
+      messageSid,
+      message: messageText.substring(0, 100) + (messageText.length > 100 ? '...' : '')
     })
     
-    // Only respond to text messages
-    if (type === 'text') {
-      await sendFereirajaLink(phoneNumber, messageText)
-    }
+    await sendFereirajaLinkViaTwilio(phoneNumber, messageText)
     
   } catch (error) {
-    console.error('❌ Error handling WhatsApp message:', error)
+    console.error('❌ Error handling Twilio WhatsApp message:', error)
   }
 }
 
-// Send Feiraja link via WhatsApp
-async function sendFereirajaLink(phoneNumber, originalMessage) {
+// Send Feiraja link via Twilio WhatsApp
+async function sendFereirajaLinkViaTwilio(phoneNumber, originalMessage) {
   try {
-    const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN
-    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
+    const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID
+    const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN
+    const TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886'
     
-    if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
-      console.log('⚠️ WhatsApp credentials not configured')
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
+      console.log('⚠️ Twilio credentials not configured')
       return
     }
+    
+    // Initialize Twilio client
+    const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     
     // Create personalized response
     const responses = [
@@ -208,44 +186,26 @@ Primeira visita? Você será direcionado para configurar sua cesta ideal! ✨`
       }
     }
     
-    // Send message via WhatsApp API
-    const whatsappApiUrl = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`
-    
-    const payload = {
-      messaging_product: 'whatsapp',
-      to: phoneNumber,
-      type: 'text',
-      text: {
-        body: responseMessage
-      }
-    }
-    
-    const response = await fetch(whatsappApiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    // Send message via Twilio WhatsApp API
+    const message = await client.messages.create({
+      body: responseMessage,
+      from: TWILIO_WHATSAPP_FROM,
+      to: `whatsapp:${phoneNumber}`
     })
     
-    if (response.ok) {
-      console.log('✅ WhatsApp message sent successfully to', phoneNumber)
-      
-      // Log the interaction for analytics
-      console.log('📊 WhatsApp interaction logged:', {
-        phoneNumber: phoneNumber.substring(0, 5) + '***', // Privacy
-        timestamp: new Date().toISOString(),
-        originalMessage: originalMessage.substring(0, 50) + '...',
-        responseSent: true
-      })
-    } else {
-      const errorData = await response.text()
-      console.error('❌ Failed to send WhatsApp message:', errorData)
-    }
+    console.log('✅ Twilio WhatsApp message sent successfully to', phoneNumber, 'SID:', message.sid)
+    
+    // Log the interaction for analytics
+    console.log('📊 WhatsApp interaction logged:', {
+      phoneNumber: phoneNumber.substring(0, 5) + '***', // Privacy
+      timestamp: new Date().toISOString(),
+      originalMessage: originalMessage.substring(0, 50) + (originalMessage.length > 50 ? '...' : ''),
+      responseSent: true,
+      messageSid: message.sid
+    })
     
   } catch (error) {
-    console.error('❌ Error sending WhatsApp message:', error)
+    console.error('❌ Error sending Twilio WhatsApp message:', error)
   }
 }
 
