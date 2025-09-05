@@ -47,7 +47,10 @@ import productRoutes from './routes/products.js'
 import producerRoutes from './routes/producers.js'
 import boxPriceRoutes from './routes/boxPrices.js'
 import addressRoutes from './routes/addresses.js'
+import userRoutes from './routes/users.js'
 import webhookRoutes from './routes/webhook.js'
+import whatsappAuthRoutes from './routes/whatsappAuth.js'
+import whatsappTestRoutes from './routes/whatsappTest.js'
 
 app.use('/api/admin', authRoutes)
 app.use('/api/categories', categoryRoutes)
@@ -59,7 +62,10 @@ app.use('/api/admin/producers', producerRoutes)
 app.use('/api/admin/box-prices', boxPriceRoutes)
 app.use('/api/addresses', addressRoutes)
 app.use('/api/admin/addresses', addressRoutes)
+app.use('/api/users', userRoutes)
 app.use('/api/webhook', webhookRoutes)
+app.use('/api/whatsapp', whatsappAuthRoutes)
+app.use('/api/whatsapp-test', whatsappTestRoutes)
 
 app.use((err, req, res, next) => {
   console.error('Global error:', err)

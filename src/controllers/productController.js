@@ -152,18 +152,35 @@ export const createProduct = async (req, res) => {
       }
     })
 
-    if (req.body['origin.producerId'] || req.body['origin.distance'] || req.body['origin.harvestDate']) {
+    if (req.body['origin.producerId'] || req.body['origin.distance'] || req.body['origin.harvestDate'] ||
+        req.body['origin.producer'] || req.body['origin.location'] || req.body['origin.story'] || req.body['origin.certifications']) {
+      
       const originData = {
         productId: newProduct.id,
         producerId: req.body['origin.producerId'] ? parseInt(req.body['origin.producerId']) : undefined,
+        producer: req.body['origin.producer'] || undefined,
+        location: req.body['origin.location'] || undefined,
         distance: req.body['origin.distance'] || undefined,
         harvestDate: req.body['origin.harvestDate'] || undefined,
+        story: req.body['origin.story'] || undefined,
+      }
+
+      // Handle certifications JSON array
+      if (req.body['origin.certifications']) {
+        try {
+          originData.certifications = JSON.parse(req.body['origin.certifications'])
+        } catch (e) {
+          originData.certifications = []
+        }
       }
 
       await prisma.productOrigin.create({ data: originData })
     }
 
-    if (req.body['nutritionalInfo.portion']) {
+    if (req.body['nutritionalInfo.portion'] || req.body['nutritionalInfo.calories'] || 
+        req.body['nutritionalInfo.carbs'] || req.body['nutritionalInfo.fiber'] || 
+        req.body['nutritionalInfo.protein'] || req.body['nutritionalInfo.vitamins']) {
+      
       const nutritionalData = {
         productId: newProduct.id,
         portion: req.body['nutritionalInfo.portion'] || undefined,
@@ -248,11 +265,25 @@ export const updateProduct = async (req, res) => {
     })
 
     // Update origin if provided
-    if (req.body['origin.producerId'] || req.body['origin.distance'] || req.body['origin.harvestDate']) {
+    if (req.body['origin.producerId'] || req.body['origin.distance'] || req.body['origin.harvestDate'] || 
+        req.body['origin.producer'] || req.body['origin.location'] || req.body['origin.story'] || req.body['origin.certifications']) {
+      
       const originData = {
         producerId: req.body['origin.producerId'] ? parseInt(req.body['origin.producerId']) : undefined,
+        producer: req.body['origin.producer'] || undefined,
+        location: req.body['origin.location'] || undefined,
         distance: req.body['origin.distance'] || undefined,
         harvestDate: req.body['origin.harvestDate'] || undefined,
+        story: req.body['origin.story'] || undefined,
+      }
+
+      // Handle certifications JSON array
+      if (req.body['origin.certifications']) {
+        try {
+          originData.certifications = JSON.parse(req.body['origin.certifications'])
+        } catch (e) {
+          originData.certifications = []
+        }
       }
 
       await prisma.productOrigin.upsert({
@@ -263,7 +294,10 @@ export const updateProduct = async (req, res) => {
     }
 
     // Update nutritional info if provided
-    if (req.body['nutritionalInfo.portion']) {
+    if (req.body['nutritionalInfo.portion'] || req.body['nutritionalInfo.calories'] || 
+        req.body['nutritionalInfo.carbs'] || req.body['nutritionalInfo.fiber'] || 
+        req.body['nutritionalInfo.protein'] || req.body['nutritionalInfo.vitamins']) {
+      
       const nutritionalData = {
         portion: req.body['nutritionalInfo.portion'] || undefined,
         calories: req.body['nutritionalInfo.calories'] ? parseInt(req.body['nutritionalInfo.calories']) : undefined,

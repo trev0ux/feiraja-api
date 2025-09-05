@@ -110,7 +110,29 @@ model BoxPrice {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  users       User[]
+
   @@map("box_prices")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  phoneNumber  String   @unique
+  name         String?
+  email        String?
+  isFirstTime  Boolean  @default(true)
+  selectedBoxSize Int?
+  deliveryDay  String?
+  householdSize Int?
+  preferences  Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  boxPrice     BoxPrice? @relation(fields: [selectedBoxSize], references: [profileType])
+  addresses    Address[]
+  verificationCodes WhatsAppVerification[]
+
+  @@map("users")
 }
 
 model Address {
@@ -128,5 +150,25 @@ model Address {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("addresses")
+}
+
+model WhatsAppVerification {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String
+  code        String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  verified    Boolean  @default(false)
+  userId      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumber])
+  @@index([code])
+  @@map("whatsapp_verifications")
 }

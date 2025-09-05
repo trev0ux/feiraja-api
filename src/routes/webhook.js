@@ -1,5 +1,6 @@
 import express from 'express'
 import twilio from 'twilio'
+import prisma from '../utils/database.js'
 
 const router = express.Router()
 
@@ -105,6 +106,41 @@ async function handleIncomingTwilioWhatsAppMessage(message) {
   }
 }
 
+// Check if user is first-time and get/create user in database
+async function getUserOrCreate(phoneNumber) {
+  try {
+    const cleanPhoneNumber = phoneNumber.replace('whatsapp:', '')
+    
+    let user = await prisma.user.findUnique({
+      where: { phoneNumber: cleanPhoneNumber },
+      include: {
+        boxPrice: true
+      }
+    })
+
+    // If user doesn't exist, create new user
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          phoneNumber: cleanPhoneNumber,
+          isFirstTime: true
+        },
+        include: {
+          boxPrice: true
+        }
+      })
+      console.log('🆕 New user created via WhatsApp:', cleanPhoneNumber.substring(0, 5) + '***')
+    } else {
+      console.log('👤 Existing user found via WhatsApp:', cleanPhoneNumber.substring(0, 5) + '***')
+    }
+
+    return user
+  } catch (error) {
+    console.error('❌ Error getting/creating user:', error)
+    return null
+  }
+}
+
 // Send Feiraja link via Twilio WhatsApp
 async function sendFereirajaLinkViaTwilio(phoneNumber, originalMessage) {
   try {
@@ -117,8 +153,35 @@ async function sendFereirajaLinkViaTwilio(phoneNumber, originalMessage) {
       return
     }
     
+    // Check if trying to send to the same number (sandbox limitation)
+    const toNumber = `whatsapp:${phoneNumber}`
+    if (toNumber === TWILIO_WHATSAPP_FROM) {
+      console.log('⚠️ Cannot send message to same number (Twilio Sandbox limitation)')
+      console.log('📝 Would have sent:', originalMessage.substring(0, 50) + '...')
+      return
+    }
+    
     // Initialize Twilio client
     const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    
+    // Get or create user in database
+    const user = await getUserOrCreate(phoneNumber)
+    if (!user) {
+      console.log('❌ Failed to get/create user, using default behavior')
+      return
+    }
+    
+    // Determine URL based on user status
+    let baseUrl = 'https://feiraja.vercel.app'
+    
+    // If user is first time OR doesn't have basket configuration, send to custom-box
+    const needsBasketSetup = user.isFirstTime || !user.selectedBoxSize || !user.deliveryDay || !user.householdSize
+    if (needsBasketSetup) {
+      baseUrl = 'https://feiraja.vercel.app/custom-box'
+    }
+    
+    // Add phone number as URL parameter for authentication
+    baseUrl += `?phone=${encodeURIComponent(user.phoneNumber)}`
     
     // Create personalized response
     const responses = [
@@ -127,7 +190,7 @@ async function sendFereirajaLinkViaTwilio(phoneNumber, originalMessage) {
         message: `Olá! 👋 Bem-vindo à Feiraja! 🥬🍅
 
 Acesse nossa plataforma e descubra produtos frescos direto da roça:
-🔗 https://feiraja.vercel.app
+🔗 ${baseUrl}
 
 ✨ O que você encontra:
 • Frutas e verduras frescas
@@ -135,28 +198,28 @@ Acesse nossa plataforma e descubra produtos frescos direto da roça:
 • Entrega em casa
 • Preços direto do produtor
 
-Primeira vez? Você será direcionado para montar sua cesta personalizada! 📦`
+${needsBasketSetup ? 'Como é sua primeira vez, você será direcionado para montar sua cesta personalizada! 📦' : 'Bem-vindo de volta! Acesse sua conta e faça novos pedidos! 🛒'}`
       },
       {
         trigger: /produto|comprar|cesta|feira/i,
         message: `🛒 Que ótimo! Você quer conhecer nossos produtos!
 
 Acesse agora a Feiraja:
-🔗 https://feiraja.vercel.app
+🔗 ${baseUrl}
 
 🌱 Produtos frescos da roça
 📦 Cestas personalizadas
 🚚 Entrega gratuita
 💚 Direto do produtor
 
-Clique no link e monte sua primeira cesta! 🥕🥬`
+${needsBasketSetup ? 'Clique no link e monte sua primeira cesta! 🥕🥬' : 'Clique no link e faça novos pedidos! 🥕🥬'}`
       },
       {
         trigger: /preco|valor|quanto|custa/i,
         message: `💰 Nossos preços são direto do produtor!
 
 Veja todos os valores na nossa plataforma:
-🔗 https://feiraja.vercel.app
+🔗 ${baseUrl}
 
 🏷️ Cestas a partir de R$ 25,00
 📦 Tamanhos para toda família
@@ -171,13 +234,13 @@ Acesse e confira! 🛒`
     let responseMessage = `Olá! 👋 Obrigado pela mensagem!
 
 Acesse a Feiraja e descubra produtos frescos da roça:
-🔗 https://feiraja.vercel.app
+🔗 ${baseUrl}
 
 🥬 Produtos orgânicos e frescos
 📦 Cestas personalizadas  
 🚚 Entrega em casa
 
-Primeira visita? Você será direcionado para configurar sua cesta ideal! ✨`
+${needsBasketSetup ? 'Como é sua primeira visita, você será direcionado para configurar sua cesta ideal! ✨' : 'Bem-vindo de volta! Acesse e faça novos pedidos! ✨'}`
 
     for (const response of responses) {
       if (response.trigger.test(originalMessage)) {
