@@ -300,7 +300,17 @@ Feirajá - A feira na sua casa`
 
     const cleanNumber = phoneNumber.replace(/\D/g, '')
     // Ensure number has country code (Brazil +55 by default)
-    const formattedNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`
+    let formattedNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`
+    
+    // Remove the 9th digit for Brazilian mobile numbers (convert from new format to old format)
+    // Brazilian mobile: 5571XXXXXXXX (12 digits) or 5571XXXXXXXXX (13 digits with 9)
+    if (formattedNumber.length === 13 && formattedNumber.startsWith('55')) {
+      // Remove the 9th digit (mobile 9)
+      const countryCode = formattedNumber.substring(0, 4)  // 5571
+      const number = formattedNumber.substring(5)          // remove the 9, keep the rest
+      formattedNumber = countryCode + number
+      console.log(`📱 Converted number format: ${cleanNumber} -> ${formattedNumber} (removed mobile 9)`)
+    }
     
     console.log(`🔄 Sending WhatsApp message via Meta API to ${formattedNumber}`)
     console.log(`📝 Message: ${message}`)
@@ -362,7 +372,19 @@ Feirajá - A feira na sua casa`
     }
 
     const cleanNumber = phoneNumber.replace(/\D/g, '')
-    const formattedTo = `whatsapp:+${cleanNumber}`
+    // Ensure number has country code (Brazil +55 by default)
+    let formattedNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`
+    
+    // Remove the 9th digit for Brazilian mobile numbers (convert from new format to old format)
+    if (formattedNumber.length === 13 && formattedNumber.startsWith('55')) {
+      // Remove the 9th digit (mobile 9)
+      const countryCode = formattedNumber.substring(0, 4)  // 5571
+      const number = formattedNumber.substring(5)          // remove the 9, keep the rest
+      formattedNumber = countryCode + number
+      console.log(`📱 Converted number format: ${cleanNumber} -> ${formattedNumber} (removed mobile 9)`)
+    }
+    
+    const formattedTo = `whatsapp:+${formattedNumber}`
     
     console.log(`🔄 Sending WhatsApp message to ${formattedTo}`)
     console.log(`📝 Message: ${message}`)
