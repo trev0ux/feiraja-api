@@ -77,19 +77,26 @@ export const sendVerificationCode = async (req, res) => {
 
     const cleanedNumber = cleanPhoneNumber(phoneNumber)
     
-    // Check rate limiting - max 3 attempts per hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+    // Check rate limiting - max attempts per time period
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const maxAttempts = isDevelopment ? 10 : 3  // More attempts in dev
+    const timeWindow = isDevelopment ? 10 * 60 * 1000 : 60 * 60 * 1000  // 10 min in dev, 1 hour in prod
+    
+    const timeAgo = new Date(Date.now() - timeWindow)
     const recentAttempts = await prisma.whatsAppVerification.count({
       where: {
         phoneNumber: cleanedNumber,
-        createdAt: { gte: oneHourAgo }
+        createdAt: { gte: timeAgo }
       }
     })
 
-    if (recentAttempts >= 3) {
+    if (recentAttempts >= maxAttempts) {
+      const waitTime = isDevelopment ? 600 : 3600  // 10 min vs 1 hour
       return res.status(429).json({ 
-        error: 'Muitas tentativas. Tente novamente em 1 hora.',
-        retryAfter: 3600
+        error: isDevelopment 
+          ? `Muitas tentativas. Tente novamente em ${waitTime/60} minutos.`
+          : 'Muitas tentativas. Tente novamente em 1 hora.',
+        retryAfter: waitTime
       })
     }
 
