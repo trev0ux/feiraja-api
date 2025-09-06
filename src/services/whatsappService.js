@@ -9,15 +9,36 @@
 // In production, replace with actual WhatsApp Business API client
 class WhatsAppService {
   constructor() {
-    this.isProduction = process.env.NODE_ENV === 'production'
-    // Meta WhatsApp Business API credentials
-    this.accessToken = process.env.WHATSAPP_ACCESS_TOKEN || process.env.WHATSAPP_TOKEN
-    this.phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-    this.verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_SECRET
-    // Fallback to Twilio credentials
-    this.twilioAccountSid = process.env.TWILIO_ACCOUNT_SID
-    this.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN
-    this.twilioWhatsAppFrom = process.env.TWILIO_WHATSAPP_FROM
+    // Environment variables will be loaded lazily when needed
+  }
+
+  // Getter methods to access credentials dynamically
+  get isProduction() {
+    return process.env.NODE_ENV === 'production'
+  }
+
+  get accessToken() {
+    return process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN
+  }
+
+  get phoneNumberId() {
+    return process.env.WHATSAPP_PHONE_NUMBER_ID
+  }
+
+  get verifyToken() {
+    return process.env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_SECRET
+  }
+
+  get twilioAccountSid() {
+    return process.env.TWILIO_ACCOUNT_SID
+  }
+
+  get twilioAuthToken() {
+    return process.env.TWILIO_AUTH_TOKEN
+  }
+
+  get twilioWhatsAppFrom() {
+    return process.env.TWILIO_WHATSAPP_FROM
   }
 
   /**
