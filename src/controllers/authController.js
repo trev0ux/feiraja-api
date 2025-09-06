@@ -8,22 +8,41 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body
 
-    const admin = await prisma.admin.findFirst({
-      where: {
-        OR: [
-          { username },
-          { email: username }
-        ]
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' })
+    }
+
+    // Try to find by username first (faster), then by email if not found
+    let admin = await prisma.admin.findUnique({
+      where: { username },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        password: true
       }
     })
 
+    // If not found by username, try by email
     if (!admin) {
-      return res.status(401).json({ error: 'Invalid credentials' })
+      admin = await prisma.admin.findUnique({
+        where: { email: username },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          password: true
+        }
+      })
+    }
+
+    if (!admin) {
+      return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
     const isValidPassword = await bcrypt.compare(password, admin.password)
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' })
+      return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
     const token = jwt.sign({ id: admin.id, username: admin.username }, JWT_SECRET, {
@@ -40,7 +59,7 @@ export const login = async (req, res) => {
     })
   } catch (error) {
     console.error('Login error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: 'Erro interno do servidor' })
   }
 }
 

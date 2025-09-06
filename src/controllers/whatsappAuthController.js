@@ -40,17 +40,22 @@ export const checkUserStatus = async (req, res) => {
         isFirstTime: true,
         selectedBoxSize: true,
         deliveryDay: true,
-        householdSize: true
+        householdSize: true,
+        addresses: {
+          select: { id: true },
+          take: 1
+        }
       }
     })
 
     const hasBasketConfiguration = user && !!(user.selectedBoxSize && user.deliveryDay && user.householdSize)
+    const hasAddress = user && user.addresses && user.addresses.length > 0
     
     res.json({
       userExists: !!user,
       isFirstTime: user?.isFirstTime ?? true,
       hasBasketConfiguration,
-      hasAddress: false, // TODO: Check for addresses
+      hasAddress,
       userInfo: user ? {
         id: user.id,
         name: user.name,
@@ -77,54 +82,55 @@ export const sendVerificationCode = async (req, res) => {
 
     const cleanedNumber = cleanPhoneNumber(phoneNumber)
     
-    // Check rate limiting - max attempts per time period
     const isDevelopment = process.env.NODE_ENV === 'development'
-    const maxAttempts = isDevelopment ? 10 : 3  // More attempts in dev
-    const timeWindow = isDevelopment ? 10 * 60 * 1000 : 60 * 60 * 1000  // 10 min in dev, 1 hour in prod
     
-    const timeAgo = new Date(Date.now() - timeWindow)
-    const recentAttempts = await prisma.whatsAppVerification.count({
-      where: {
-        phoneNumber: cleanedNumber,
-        createdAt: { gte: timeAgo }
-      }
-    })
-
-    if (recentAttempts >= maxAttempts) {
-      const waitTime = isDevelopment ? 600 : 3600  // 10 min vs 1 hour
-      return res.status(429).json({ 
-        error: isDevelopment 
-          ? `Muitas tentativas. Tente novamente em ${waitTime/60} minutos.`
-          : 'Muitas tentativas. Tente novamente em 1 hora.',
-        retryAfter: waitTime
+    // Skip rate limiting in development for faster testing
+    if (!isDevelopment) {
+      // Check rate limiting - max attempts per time period
+      const maxAttempts = 3
+      const timeWindow = 60 * 60 * 1000  // 1 hour
+      
+      const timeAgo = new Date(Date.now() - timeWindow)
+      const recentAttempts = await prisma.whatsAppVerification.count({
+        where: {
+          phoneNumber: cleanedNumber,
+          createdAt: { gte: timeAgo }
+        }
       })
+
+      if (recentAttempts >= maxAttempts) {
+        return res.status(429).json({ 
+          error: 'Muitas tentativas. Tente novamente em 1 hora.',
+          retryAfter: 3600
+        })
+      }
     }
 
-    // Clean up old verification codes for this number
-    await prisma.whatsAppVerification.deleteMany({
+    // Clean up old verification codes for this number (run in background)
+    prisma.whatsAppVerification.deleteMany({
       where: {
         phoneNumber: cleanedNumber,
         expiresAt: { lte: new Date() }
       }
-    })
+    }).catch(err => console.log('Cleanup error:', err))
 
     const code = generateVerificationCode()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
 
-    // Create verification record
-    await prisma.whatsAppVerification.create({
-      data: {
-        phoneNumber: cleanedNumber,
-        code,
-        expiresAt
-      }
-    })
-
-    // Check if user exists to customize message
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: cleanedNumber },
-      select: { name: true }
-    })
+    // Check if user exists and create verification record simultaneously
+    const [verification, user] = await Promise.all([
+      prisma.whatsAppVerification.create({
+        data: {
+          phoneNumber: cleanedNumber,
+          code,
+          expiresAt
+        }
+      }),
+      prisma.user.findUnique({
+        where: { phoneNumber: cleanedNumber },
+        select: { name: true }
+      })
+    ])
 
     // Send WhatsApp message using service
     const whatsappResult = await whatsappService.sendVerificationCode(cleanedNumber, code, user)

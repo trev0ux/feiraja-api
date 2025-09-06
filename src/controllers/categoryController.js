@@ -115,8 +115,12 @@ export const deleteCategory = async (req, res) => {
   try {
     const categoryId = parseInt(req.params.id)
 
+    if (!categoryId || isNaN(categoryId)) {
+      return res.status(400).json({ error: 'Invalid category ID' })
+    }
+
     const productsCount = await prisma.product.count({
-      where: { categoryId }
+      where: { categoryId: categoryId }
     })
 
     if (productsCount > 0) {

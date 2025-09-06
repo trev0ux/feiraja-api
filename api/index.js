@@ -1,6 +1,6 @@
 import app from '../src/app.js'
 
-const PORT = process.env.PORT || 3005
+const PORT = process.env.PORT || 3004
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
