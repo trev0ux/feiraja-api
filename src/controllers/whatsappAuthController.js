@@ -87,7 +87,7 @@ export const sendVerificationCode = async (req, res) => {
     // Skip rate limiting in development for faster testing
     if (!isDevelopment) {
       // Check rate limiting - max attempts per time period
-      const maxAttempts = 3
+      const maxAttempts = 10
       const timeWindow = 60 * 60 * 1000  // 1 hour
       
       const timeAgo = new Date(Date.now() - timeWindow)
@@ -101,7 +101,9 @@ export const sendVerificationCode = async (req, res) => {
       if (recentAttempts >= maxAttempts) {
         return res.status(429).json({ 
           error: 'Muitas tentativas. Tente novamente em 1 hora.',
-          retryAfter: 3600
+          retryAfter: 3600,
+          maxAttempts,
+          currentAttempts: recentAttempts
         })
       }
     }
