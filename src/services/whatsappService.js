@@ -205,6 +205,9 @@ Feirajá - A feira na sua casa`
     const cleanNumber = phoneNumber.replace(/\D/g, '')
     const formattedTo = `whatsapp:+${cleanNumber}`
     
+    console.log(`🔄 Sending WhatsApp message to ${formattedTo}`)
+    console.log(`📝 Message: ${message}`)
+    
     // Create basic auth string
     const auth = Buffer.from(`${this.twilioAccountSid}:${this.twilioAuthToken}`).toString('base64')
     
@@ -223,13 +226,20 @@ Feirajá - A feira na sua casa`
 
     const result = await response.json()
     
+    console.log(`📊 Twilio Response Status: ${response.status}`)
+    console.log(`📊 Twilio Response:`, result)
+    
     if (!response.ok) {
+      console.error(`❌ Twilio error: ${result.message}`, result)
       throw new Error(`Twilio WhatsApp API error: ${result.message || 'Unknown error'}`)
     }
 
+    console.log(`✅ Message queued with SID: ${result.sid}`)
+    
     return {
       success: true,
       messageId: result.sid,
+      status: result.status,
       whatsappLink: this.generateWhatsAppLink(phoneNumber, '')
     }
   }
