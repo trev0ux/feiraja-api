@@ -10,7 +10,11 @@
 class WhatsAppService {
   constructor() {
     this.isProduction = process.env.NODE_ENV === 'production'
-    // Twilio credentials
+    // Meta WhatsApp Business API credentials
+    this.accessToken = process.env.WHATSAPP_ACCESS_TOKEN || process.env.WHATSAPP_TOKEN
+    this.phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    this.verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_SECRET
+    // Fallback to Twilio credentials
     this.twilioAccountSid = process.env.TWILIO_ACCOUNT_SID
     this.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN
     this.twilioWhatsAppFrom = process.env.TWILIO_WHATSAPP_FROM
@@ -27,7 +31,50 @@ class WhatsAppService {
     try {
       const message = this.buildVerificationMessage(code, user)
       
-      if (this.twilioAccountSid && this.twilioAuthToken && this.twilioWhatsAppFrom) {
+      // Try Meta WhatsApp Business API first
+      if (this.accessToken && this.phoneNumberId) {
+        console.log('🔄 Using Meta WhatsApp Business API')
+        try {
+          const result = await this.sendMetaWhatsAppMessage(phoneNumber, message)
+          return result
+        } catch (metaError) {
+          console.log('⚠️ Meta WhatsApp API failed, falling back to Twilio...')
+          console.error('Meta API Error:', metaError.message)
+          
+          // If Meta API fails, try Twilio as fallback
+          if (this.twilioAccountSid && this.twilioAuthToken && this.twilioWhatsAppFrom) {
+            console.log('🔄 Falling back to Twilio WhatsApp API')
+            
+            // Check if using sandbox number
+            const isSandbox = this.twilioWhatsAppFrom === 'whatsapp:+14155238886'
+            
+            if (isSandbox) {
+              console.log('⚠️  Using Twilio Sandbox. User must join sandbox first.')
+              console.log('📱 Instructions: Send "join <sandbox-keyword>" to +1 415 523 8886')
+            }
+            
+            const result = await this.sendTwilioWhatsAppMessage(phoneNumber, message)
+            
+            // Add sandbox instructions to response if needed
+            if (isSandbox) {
+              result.sandboxInstructions = {
+                required: true,
+                message: 'Para receber mensagens do WhatsApp, primeiro envie "join <palavra-chave>" para +1 415 523 8886',
+                sandboxNumber: '+1 415 523 8886'
+              }
+            }
+            
+            return result
+          } else {
+            // No fallback available, throw original Meta error
+            throw metaError
+          }
+        }
+      }
+      // Direct Twilio fallback if no Meta credentials
+      else if (this.twilioAccountSid && this.twilioAuthToken && this.twilioWhatsAppFrom) {
+        console.log('🔄 Using Twilio WhatsApp API')
+        
         // Check if using sandbox number
         const isSandbox = this.twilioWhatsAppFrom === 'whatsapp:+14155238886'
         
@@ -36,7 +83,6 @@ class WhatsAppService {
           console.log('📱 Instructions: Send "join <sandbox-keyword>" to +1 415 523 8886')
         }
         
-        // Production/Development: Use Twilio WhatsApp API
         const result = await this.sendTwilioWhatsAppMessage(phoneNumber, message)
         
         // Add sandbox instructions to response if needed
@@ -49,9 +95,11 @@ class WhatsAppService {
         }
         
         return result
-      } else {
-        // Development: Log message and return success
-        console.log(`📱 [WhatsApp Simulation] Message to ${phoneNumber}:`)
+      } 
+      // Development simulation
+      else {
+        console.log('📱 [WhatsApp Simulation] No API credentials configured')
+        console.log(`📱 Message to ${phoneNumber}:`)
         console.log(message)
         console.log(`🔗 WhatsApp Link: ${this.generateWhatsAppLink(phoneNumber, code)}`)
         
@@ -64,7 +112,7 @@ class WhatsAppService {
     } catch (error) {
       console.error('WhatsApp send error:', error)
       
-      // Check for common Twilio errors
+      // Check for common errors
       if (error.message && error.message.includes('not a valid WhatsApp user')) {
         throw new Error('Número não encontrado no WhatsApp ou não habilitado para receber mensagens')
       } else if (error.message && error.message.includes('sandbox')) {
@@ -216,6 +264,69 @@ Feirajá - A feira na sua casa`
     const cleanNumber = phoneNumber.replace(/\D/g, '')
     const message = encodeURIComponent(`Código: ${code}`)
     return `https://wa.me/${cleanNumber}?text=${message}`
+  }
+
+  /**
+   * Send message via Meta WhatsApp Business API
+   * @param {string} phoneNumber - Phone number
+   * @param {string} message - Message text
+   * @returns {Promise<Object>} - API response
+   */
+  async sendMetaWhatsAppMessage(phoneNumber, message) {
+    if (!this.accessToken || !this.phoneNumberId) {
+      throw new Error('Meta WhatsApp Business API credentials not configured')
+    }
+
+    const cleanNumber = phoneNumber.replace(/\D/g, '')
+    // Ensure number has country code (Brazil +55 by default)
+    const formattedNumber = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`
+    
+    console.log(`🔄 Sending WhatsApp message via Meta API to ${formattedNumber}`)
+    console.log(`📝 Message: ${message}`)
+    
+    const response = await fetch(`https://graph.facebook.com/v18.0/${this.phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: formattedNumber,
+        text: {
+          body: message
+        }
+      })
+    })
+
+    const result = await response.json()
+    
+    console.log(`📊 Meta API Response Status: ${response.status}`)
+    console.log(`📊 Meta API Response:`, result)
+    
+    if (!response.ok) {
+      console.error(`❌ Meta WhatsApp API error:`, result)
+      
+      // Handle specific error cases
+      if (result.error?.code === 131026) {
+        throw new Error('Número de telefone não é um usuário válido do WhatsApp')
+      } else if (result.error?.code === 131047) {
+        throw new Error('Re-engagement message não foi enviado')
+      } else if (result.error?.message) {
+        throw new Error(`Meta WhatsApp API error: ${result.error.message}`)
+      } else {
+        throw new Error('Erro desconhecido ao enviar mensagem WhatsApp')
+      }
+    }
+
+    console.log(`✅ Message sent with ID: ${result.messages?.[0]?.id}`)
+    
+    return {
+      success: true,
+      messageId: result.messages?.[0]?.id,
+      status: 'queued',
+      whatsappLink: this.generateWhatsAppLink(phoneNumber, '')
+    }
   }
 
   /**
