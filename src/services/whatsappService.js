@@ -28,8 +28,27 @@ class WhatsAppService {
       const message = this.buildVerificationMessage(code, user)
       
       if (this.twilioAccountSid && this.twilioAuthToken && this.twilioWhatsAppFrom) {
+        // Check if using sandbox number
+        const isSandbox = this.twilioWhatsAppFrom === 'whatsapp:+14155238886'
+        
+        if (isSandbox) {
+          console.log('⚠️  Using Twilio Sandbox. User must join sandbox first.')
+          console.log('📱 Instructions: Send "join <sandbox-keyword>" to +1 415 523 8886')
+        }
+        
         // Production/Development: Use Twilio WhatsApp API
-        return await this.sendTwilioWhatsAppMessage(phoneNumber, message)
+        const result = await this.sendTwilioWhatsAppMessage(phoneNumber, message)
+        
+        // Add sandbox instructions to response if needed
+        if (isSandbox) {
+          result.sandboxInstructions = {
+            required: true,
+            message: 'Para receber mensagens do WhatsApp, primeiro envie "join <palavra-chave>" para +1 415 523 8886',
+            sandboxNumber: '+1 415 523 8886'
+          }
+        }
+        
+        return result
       } else {
         // Development: Log message and return success
         console.log(`📱 [WhatsApp Simulation] Message to ${phoneNumber}:`)
@@ -44,6 +63,14 @@ class WhatsAppService {
       }
     } catch (error) {
       console.error('WhatsApp send error:', error)
+      
+      // Check for common Twilio errors
+      if (error.message && error.message.includes('not a valid WhatsApp user')) {
+        throw new Error('Número não encontrado no WhatsApp ou não habilitado para receber mensagens')
+      } else if (error.message && error.message.includes('sandbox')) {
+        throw new Error('Usuário precisa se juntar ao sandbox do Twilio primeiro. Envie "join <palavra-chave>" para +1 415 523 8886')
+      }
+      
       throw error
     }
   }
